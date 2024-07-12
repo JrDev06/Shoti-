@@ -6,12 +6,13 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.get('/shoti', async (req, res) => {
+    let browser;
     try {
-        const browser = await puppeteer.launch({ headless: true });
+        browser = await puppeteer.launch({ headless: true });
         const page = await browser.newPage();
 
         // Navigate to TikTok search page with specific criteria
-        await page.goto('https://www.tiktok.com/tag/beautiful-girls-philippines', { waitUntil: 'networkidle2' });
+        await page.goto('https://tiktok.com/tag/beautiful-girls-philippines', { waitUntil: 'networkidle2' });
 
         // Scrape video URLs from the search results
         const videoUrls = await page.evaluate(() => {
@@ -32,8 +33,6 @@ app.get('/shoti', async (req, res) => {
             return video ? video.src : null;
         });
 
-        await browser.close();
-
         if (!videoSrc) {
             throw new Error('Video URL not found');
         }
@@ -48,8 +47,12 @@ app.get('/shoti', async (req, res) => {
         res.setHeader('Content-Type', 'video/mp4');
         videoResponse.data.pipe(res);
     } catch (error) {
-        console.error(error);
+        console.error('Error fetching video:', error.message);
         res.status(500).json({ error: 'Failed to fetch video' });
+    } finally {
+        if (browser) {
+            await browser.close();
+        }
     }
 });
 
