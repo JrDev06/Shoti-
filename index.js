@@ -12,7 +12,7 @@ app.get('/shoti', async (req, res) => {
         const page = await browser.newPage();
 
         // Navigate to TikTok search page with specific criteria
-        await page.goto('https://tiktok.com/tag/beautiful-girls-philippines', { waitUntil: 'networkidle2' });
+        await page.goto('https://tiktok.com/search/beautiful-girls-philippines', { waitUntil: 'networkidle2' });
 
         // Scrape video URLs from the search results
         const videoUrls = await page.evaluate(() => {
