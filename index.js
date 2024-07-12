@@ -1,4 +1,12 @@
-const axios = require('axios');
+// index.js
+const express = require("express");
+const app = express();
+const PORT = process.env.PORT || 3030;
+const axios = require("axios");
+const cheerio = require("cheerio");
+const fs = require("fs");
+const httpServer = require("http-server");
+const path = require("path");
 
 class TikTokAPI {
   async searchVideos(query) {
@@ -42,27 +50,44 @@ class TikTokAPI {
     return videoPath;
   }
 
-  async streamVideo(videoPath) {
-    const server = require('http-server');
-    const port = 3000;
-    server.createServer({
-      root: './videos',
-    }).listen(port, () => {
-      console.log(`Video streaming at http://localhost:${port}/${videoPath}`);
-    });
+  async streamVideo(videoUrl, res) {
+    const videoPath = await this.downloadVideo(videoUrl);
+    const filePath = path.join(__dirname, videoPath);
+    const stat = fs.statSync(filePath);
+    const fileSize = stat.size;
+    const range = req.headers.range;
+    if (range) {
+      const parts = range.replace(/bytes=/, "").split("-");
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+      const chunksize = (end - start) + 1;
+      const file = fs.createReadStream(filePath, { start, end });
+      const head = {
+        'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+        'Accept-Ranges': 'bytes',
+        'Content-Length': chunksize,
+        'Content-Type': 'video/mp4',
+      };
+      res.writeHead(206, head);
+      file.pipe(res);
+    } else {
+      const head = {
+        'Content-Length': fileSize,
+        'Content-Type': 'video/mp4',
+      };
+      res.writeHead(200, head);
+      fs.createReadStream(filePath).pipe(res);
+    }
   }
 }
 
 const api = new TikTokAPI();
 
-// Search for videos
-const query = 'shoti or beautiful Filipina girl';
-const videoLinks = await api.searchVideos(query);
+app.get("/shoti/:id", async (req, res) => {
+  const videoUrl = `https://tiktok.com/video/${req.params.id}`;
+  await api.streamVideo(videoUrl, res);
+});
 
-// Get video info and download the first video
-const videoUrl = videoLinks[0];
-const videoInfo = await api.getVideoInfo(videoUrl);
-const videoPath = await api.downloadVideo(videoUrl);
-
-// Stream the video
-await api.streamVideo(videoPath);
+app.listen(PORT, () => {
+  console.log(`Server started on port ${PORT}`);
+});
